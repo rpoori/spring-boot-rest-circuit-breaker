@@ -3,6 +3,7 @@ package com.my.poc.springbootrestcircuitbreaker;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,9 @@ public class HelloWorldController {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private CircuitBreakerFactory circuitBreakerFactory;
+
     @GetMapping("/message")
     @SneakyThrows
     public ResponseEntity<String> getMessage() {
@@ -32,7 +36,9 @@ public class HelloWorldController {
           new URI(downstreamRestApiUrl + "/message")
         );
 
-        String message = restTemplate.exchange(requestEntity, String.class).getBody();
+        String message = circuitBreakerFactory.create("downstream-service-id-or-name").run(() ->
+                (restTemplate.exchange(requestEntity, String.class).getBody()),
+                throwable -> "This is fallback message because call to downstream was not successful");
 
         return ResponseEntity.ok(message);
     }
